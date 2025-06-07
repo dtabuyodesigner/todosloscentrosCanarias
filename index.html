@@ -93,7 +93,7 @@
         <p class="text-sm text-gray-500">Creado por Daniel Tabuyo de las Peñas <img src="https://raw.githubusercontent.com/dtabuyodesigner/todosloscentrosCanarias/main/lisboa.jpg" alt="Foto de Lisboa" class="inline-block h-20 w-20 rounded-full ml-2 align-middle"></p>
     </footer>
 
-    <script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
         try {
             const schoolData = [
@@ -4427,8 +4427,23 @@
         "distancia_aeropuerto_km": 20
     }
 ];
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            // --- INICIO DE LA BASE DE DATOS DE CENTROS ---
+            // Asegúrate de que aquí está el array completo con los 876 centros.
+            const schoolData = [
+                {
+                    "Codigo": "38005406", "Denominacion": "CEIP ALFONSO SPINOLA", "Municipio": "SANTA CRUZ DE TENERIFE", "Direccion": "BARRANCO TAHODIO, 4. BARRIO DE LA ALEGRIA", "Telefono": "922-478795", "CorreoElectronico": "38005406@gobiernodecanarias.org", "Isla": "TENERIFE", "Naturaleza": "Público", "Zona": "METROPOLITANA", "aeropuerto": "TFN", "distancia_aeropuerto_km": 14
+                },
+                // ... PEGA AQUÍ EL RESTO DE LOS 876 CENTROS ...
+                {
+                    "Codigo": "38009817", "Denominacion": "CEIP YAIZA", "Municipio": "YAIZA", "Direccion": "C/ YAIZA, S/N", "Telefono": "928-805907", "CorreoElectronico": "38009817@gobiernodecanarias.org", "Isla": "LANZAROTE", "Naturaleza": "Público", "Zona": "SUR", "aeropuerto": "ACE", "distancia_aeropuerto_km": 20
+                }
+            ];
+            // --- FIN DE LA BASE DE DATOS DE CENTROS ---
 
-           let currentPage = 1;
+            let currentPage = 1;
             let rowsPerPage = 25;
             let filteredData = [...schoolData];
             let sortColumn = 'distancia_aeropuerto_km';
@@ -4610,7 +4625,7 @@
                 const center = schoolData.find(c => c.Codigo === codigo);
                 if (!center) return;
                 const fullAddress = `${center.Direccion}, ${center.Municipio}, ${center.Isla}, Spain`;
-                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+                const mapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}`;
                 document.getElementById('modal-title').textContent = center.Denominacion || 'Detalles del Centro';
                 document.getElementById('modal-body').innerHTML = `
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
