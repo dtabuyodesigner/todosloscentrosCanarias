@@ -4428,14 +4428,14 @@
     }
 ];
 
-            let currentPage = 1;
+           let currentPage = 1;
             let rowsPerPage = 25;
             let filteredData = [...schoolData];
             let sortColumn = 'distancia_aeropuerto_km';
             let sortDirection = 'asc';
 
             const searchInput = document.getElementById('search-input');
-            const filterTipo = document.getElementById('filter-tipo'); // NUEVO
+            const filterTipo = document.getElementById('filter-tipo');
             const filterIsla = document.getElementById('filter-isla');
             const filterMunicipio = document.getElementById('filter-municipio');
             const filterZona = document.getElementById('filter-zona');
@@ -4455,7 +4455,6 @@
             }
 
             function populateFilters() {
-                // Lógica para extraer el tipo de centro (CEIP, IES, etc.)
                 const tipos = [...new Set(schoolData.map(item => {
                     const match = (item.Denominacion || '').match(/^[A-Z]{2,}/);
                     return match ? match[0] : null;
@@ -4492,7 +4491,7 @@
 
             function applyAllFilters() {
                 const searchTerm = searchInput.value.toLowerCase().trim();
-                const selectedTipo = filterTipo.value; // NUEVO
+                const selectedTipo = filterTipo.value;
                 const selectedIsla = filterIsla.value;
                 const selectedMunicipio = filterMunicipio.value;
                 const selectedZona = filterZona.value;
@@ -4500,14 +4499,11 @@
                 filteredData = schoolData.filter(item => {
                     const denominacion = (item.Denominacion || '').toLowerCase();
                     const codigo = (item.Codigo || '').toLowerCase();
-
                     const searchMatch = denominacion.includes(searchTerm) || codigo.includes(searchTerm);
-                    // NUEVA LÓGICA DE FILTRADO POR TIPO
                     const tipoMatch = (selectedTipo === 'all' || (item.Denominacion || '').startsWith(selectedTipo));
                     const islaMatch = (selectedIsla === 'all' || item.Isla === selectedIsla);
                     const municipioMatch = (selectedMunicipio === 'all' || item.Municipio === selectedMunicipio);
                     const zonaMatch = (selectedZona === 'all' || item.Zona === selectedZona);
-                    
                     return searchMatch && tipoMatch && islaMatch && municipioMatch && zonaMatch;
                 });
                 
@@ -4515,18 +4511,149 @@
                 sortData(sortColumn, false); 
             }
 
-            // ... (el resto de funciones: sortData, renderTable, etc., se mantienen igual que en la versión anterior)
+            function sortData(column, isInitialSort = false) {
+                if (!isInitialSort && column) {
+                    if (sortColumn === column) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = column;
+                        sortDirection = 'asc';
+                    }
+                }
+                
+                filteredData.sort((a, b) => {
+                    const valA = a[sortColumn];
+                    const valB = b[sortColumn];
+                    if (valA === null || valA === undefined) return 1;
+                    if (valB === null || valB === undefined) return -1;
+                    if (typeof valA === 'number' && typeof valB === 'number') {
+                        return sortDirection === 'asc' ? valA - valB : valB - valA;
+                    }
+                    const strA = String(valA).toLowerCase();
+                    const strB = String(valB).toLowerCase();
+                    if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
+                    if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                renderTable();
+            }
+
+            function renderTable() {
+                tableBody.innerHTML = '';
+                const start = (currentPage - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+                const paginatedData = filteredData.slice(start, end);
+
+                if (paginatedData.length === 0) {
+                    const row = tableBody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 5;
+                    cell.textContent = 'No se encontraron resultados para los filtros seleccionados.';
+                    cell.className = 'text-center p-8 text-gray-500';
+                } else {
+                    paginatedData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'bg-white border-b hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="p-4 font-medium text-gray-900">${item.Denominacion || 'N/D'}</td>
+                            <td class="p-4">${item.Municipio || 'N/D'} (${item.Zona || 'N/D'})</td>
+                            <td class="p-4">${item.Isla || 'N/D'}</td>
+                            <td class="p-4 text-center">${item.distancia_aeropuerto_km !== undefined ? item.distancia_aeropuerto_km + ' km' : 'N/A'}</td>
+                            <td class="p-4">
+                                <button class="view-details-btn font-medium text-blue-600 hover:underline" data-id="${item.Codigo}">Ver Detalles</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+                updateResultsCount();
+                renderPagination();
+                updateSortHeaders();
+            }
+            
+            function updateResultsCount() {
+                resultsCount.textContent = `Mostrando ${filteredData.length} de ${schoolData.length} resultados.`;
+            }
+
+            function renderPagination() {
+                paginationControls.innerHTML = '';
+                const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+                if (totalPages <= 1) return;
+                const prevButton = document.createElement('button');
+                prevButton.textContent = 'Anterior';
+                prevButton.disabled = currentPage === 1;
+                prevButton.className = 'px-3 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300';
+                prevButton.addEventListener('click', () => { currentPage--; renderTable(); });
+                paginationControls.appendChild(prevButton);
+                const pageIndicator = document.createElement('span');
+                pageIndicator.textContent = `Página ${currentPage} de ${totalPages}`;
+                pageIndicator.className = 'text-sm text-gray-700';
+                paginationControls.appendChild(pageIndicator);
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Siguiente';
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.className = 'px-3 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300';
+                nextButton.addEventListener('click', () => { currentPage++; renderTable(); });
+                paginationControls.appendChild(nextButton);
+            }
+            
+            function updateSortHeaders() {
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.classList.remove('sort-asc', 'sort-desc');
+                    if (header.dataset.column === sortColumn) {
+                        header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                    }
+                });
+            }
+            
+            function showModal(codigo) {
+                const center = schoolData.find(c => c.Codigo === codigo);
+                if (!center) return;
+                const fullAddress = `${center.Direccion}, ${center.Municipio}, ${center.Isla}, Spain`;
+                const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
+                document.getElementById('modal-title').textContent = center.Denominacion || 'Detalles del Centro';
+                document.getElementById('modal-body').innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                        <p><strong>Código:</strong> ${center.Codigo || 'N/D'}</p>
+                        <p><strong>Naturaleza:</strong> ${center.Naturaleza || 'N/D'}</p>
+                        <p><strong>Isla:</strong> ${center.Isla || 'N/D'}</p>
+                        <p><strong>Zona:</strong> ${center.Zona || 'N/D'}</p>
+                        <p class="md:col-span-2"><strong>Municipio:</strong> ${center.Municipio || 'N/D'}</p>
+                        <p class="md:col-span-2"><strong>Dirección:</strong> ${center.Direccion || 'N/D'}</p>
+                        <p><strong>Teléfono:</strong> ${center.Telefono || 'No disponible'}</p>
+                        <p><strong>Email:</strong> ${center.CorreoElectronico || 'No disponible'}</p>
+                        <p class="md:col-span-2"><strong>Aeropuerto cercano:</strong> ${center.aeropuerto || 'N/D'} (~${center.distancia_aeropuerto_km !== undefined ? center.distancia_aeropuerto_km : '?'} km)</p>
+                    </div>
+                    <div class="mt-6 flex flex-wrap gap-2">
+                        <button onclick="copyToClipboard('${center.Telefono}', 'Teléfono')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Copiar Teléfono</button>
+                        <button onclick="copyToClipboard('${center.CorreoElectronico}', 'Email')" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Copiar Email</button>
+                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">Ver en Mapa</a>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => {
+                  modalContent.classList.remove('opacity-0', 'scale-95');
+                }, 10);
+            }
+            
+            function hideModal() {
+                modalContent.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 200);
+            }
 
             function addEventListeners() {
                 searchInput.addEventListener('input', applyAllFilters);
-                filterTipo.addEventListener('change', applyAllFilters); // NUEVO
+                filterTipo.addEventListener('change', applyAllFilters);
                 filterIsla.addEventListener('change', () => {
                     updateDependentFilters();
                     applyAllFilters();
                 });
                 filterMunicipio.addEventListener('change', applyAllFilters);
                 filterZona.addEventListener('change', applyAllFilters);
-
                 rowsPerPageSelect.addEventListener('change', (e) => {
                     rowsPerPage = parseInt(e.target.value, 10);
                     currentPage = 1;
@@ -4555,8 +4682,35 @@
         }
     });
     
-    // El resto del script (funciones de paginación, modales, etc.) no necesita cambios
-    // ...
-    </script>
+    function copyToClipboard(text, type = 'Texto') {
+        if (!text || text === 'No disponible') {
+            alert(`No hay ${type} para copiar.`);
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`¡${type} copiado al portapapeles!`);
+            }).catch(err => {
+                console.error('Error al copiar: ', err);
+                alert('No se pudo copiar.');
+            });
+        } else {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            tempInput.style.position = 'absolute';
+            tempInput.style.left = '-9999px';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                alert(`¡${type} copiado al portapapeles!`);
+            } catch (err) {
+                console.error('Error al copiar: ', err);
+                alert('No se pudo copiar.');
+            }
+            document.body.removeChild(tempInput);
+        }
+    }
+</script>
 </body>
 </html>
