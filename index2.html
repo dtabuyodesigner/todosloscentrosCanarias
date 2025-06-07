@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directorio Avanzado de Centros Educativos - Canarias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sortable:hover { background-color: #f0f4f8; cursor: pointer; }
+        .sort-asc::after { content: ' ▲'; font-size: 0.8em; }
+        .sort-desc::after { content: ' ▼'; font-size: 0.8em; }
+        #modal-backdrop { background-color: rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen">
+
+    <div class="container mx-auto p-4 md:p-8 flex-grow">
+        <header class="bg-white shadow-md rounded-xl p-6 mb-8 text-center">
+            <h1 class="text-4xl font-bold text-blue-700">Directorio Avanzado de Centros Educativos</h1>
+            <p class="text-gray-500 mt-2">Canarias</p>
+        </header>
+
+        <div class="bg-white shadow-md rounded-xl p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Controles de Búsqueda</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <input type="text" id="search-input" placeholder="Buscar por nombre o código..." class="lg:col-span-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <select id="filter-tipo" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="all">Todos los Tipos</option>
+                </select>
+                <select id="filter-isla" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="all">Todas las Islas</option>
+                </select>
+                <select id="filter-municipio" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                    <option value="all">Todos los Municipios</option>
+                </select>
+                <select id="filter-zona" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                    <option value="all">Todas las Zonas</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-white shadow-md rounded-xl overflow-hidden">
+            <div class="p-4 flex justify-between items-center border-b">
+                 <p id="results-count" class="text-gray-600">Cargando datos...</p>
+                 <div class="flex items-center space-x-2">
+                    <label for="rows-per-page" class="text-sm">Filas:</label>
+                    <select id="rows-per-page" class="p-1 border border-gray-300 rounded-lg">
+                        <option value="10">10</option>
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-50 text-xs text-gray-700 uppercase">
+                        <tr>
+                            <th class="p-4 sortable" data-column="Denominacion">Denominación</th>
+                            <th class="p-4 sortable" data-column="Municipio">Municipio</th>
+                            <th class="p-4 sortable" data-column="Isla">Isla</th>
+                            <th class="p-4 sortable" data-column="distancia_aeropuerto_km">Distancia Aerop.</th>
+                            <th class="p-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                         <tr><td colspan="5" class="p-8 text-center text-gray-500">Cargando datos de los centros...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="pagination-controls" class="p-4 flex justify-center items-center space-x-4">
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center transition-opacity duration-300">
+        <div id="modal-backdrop" class="fixed inset-0 bg-black opacity-50"></div>
+        <div id="modal-content" class="bg-white rounded-lg shadow-2xl z-10 w-11/12 md:w-1/2 max-w-2xl transform transition-all duration-300 scale-95 opacity-0">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 id="modal-title" class="text-2xl font-bold text-gray-800"></h2>
+                <button id="modal-close-btn" class="text-gray-500 hover:text-gray-800 text-3xl">×</button>
+            </div>
+            <div id="modal-body" class="p-6 space-y-4">
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center py-4 mt-8">
+        <p class="text-sm text-gray-500">Creado por Daniel Tabuyo de las Peñas <img src="https://raw.githubusercontent.com/dtabuyodesigner/todosloscentrosCanarias/main/lisboa.jpg" alt="Foto de Lisboa" class="inline-block h-20 w-20 rounded-full ml-2 align-middle"></p>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- CAMBIO PRINCIPAL: AHORA CARGAMOS LOS DATOS DESDE GITHUB ---
+        const dataUrl = 'https://raw.githubusercontent.com/dtabuyodesigner/todosloscentrosCanarias/main/schoolData.json';
+
+        fetch(dataUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error de red o al cargar el archivo: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(schoolData => {
+                // Una vez cargados los datos, iniciamos toda la aplicación.
+                main(schoolData);
+            })
+            .catch(error => {
+                console.error("Error fatal al cargar los datos de los centros:", error);
+                const tableBody = document.getElementById('table-body');
+                if (tableBody) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-600 font-bold">No se pudieron cargar los datos desde GitHub. Revisa la URL o el estado del repositorio. Error: ${error.message}</td></tr>`;
+                }
+                document.getElementById('results-count').textContent = "Error de carga";
+            });
+
+        // Toda la lógica de la aplicación ahora está dentro de esta función 'main'
+        function main(schoolData) {
+            let currentPage = 1;
+            let rowsPerPage = 25;
+            let filteredData = [...schoolData];
+            let sortColumn = 'distancia_aeropuerto_km';
+            let sortDirection = 'asc';
+
+            const searchInput = document.getElementById('search-input');
+            const filterTipo = document.getElementById('filter-tipo');
+            const filterIsla = document.getElementById('filter-isla');
+            const filterMunicipio = document.getElementById('filter-municipio');
+            const filterZona = document.getElementById('filter-zona');
+            const tableBody = document.getElementById('table-body');
+            const paginationControls = document.getElementById('pagination-controls');
+            const rowsPerPageSelect = document.getElementById('rows-per-page');
+            const resultsCount = document.getElementById('results-count');
+            const modal = document.getElementById('modal');
+            const modalContent = document.getElementById('modal-content');
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+
+            function initialize() {
+                populateFilters();
+                addEventListeners();
+                sortData(sortColumn, true); 
+            }
+
+            function populateFilters() {
+                const tipos = [...new Set(schoolData.map(item => {
+                    const match = (item.Denominacion || '').match(/^[A-Z]{2,}/);
+                    return match ? match[0] : null;
+                }).filter(Boolean))].sort();
+
+                tipos.forEach(tipo => {
+                    if(tipo) filterTipo.add(new Option(tipo, tipo));
+                });
+                
+                const islas = [...new Set(schoolData.map(item => item.Isla).filter(Boolean))].sort();
+                islas.forEach(isla => {
+                    if(isla) filterIsla.add(new Option(isla, isla));
+                });
+            }
+
+            function updateDependentFilters() {
+                const selectedIsla = filterIsla.value;
+                
+                filterMunicipio.innerHTML = '<option value="all">Todos los Municipios</option>';
+                filterZona.innerHTML = '<option value="all">Todas las Zonas</option>';
+                filterMunicipio.disabled = true;
+                filterZona.disabled = true;
+
+                if (selectedIsla !== 'all') {
+                    filterMunicipio.disabled = false;
+                    const municipios = [...new Set(schoolData.filter(item => item.Isla === selectedIsla).map(item => item.Municipio).filter(Boolean))].sort();
+                    municipios.forEach(m => filterMunicipio.add(new Option(m,m)));
+                    
+                    filterZona.disabled = false;
+                    const zonas = [...new Set(schoolData.filter(item => item.Isla === selectedIsla).map(item => item.Zona).filter(Boolean))].sort();
+                    zonas.forEach(z => filterZona.add(new Option(z,z)));
+                }
+            }
+
+            function applyAllFilters() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const selectedTipo = filterTipo.value;
+                const selectedIsla = filterIsla.value;
+                const selectedMunicipio = filterMunicipio.value;
+                const selectedZona = filterZona.value;
+
+                filteredData = schoolData.filter(item => {
+                    const denominacion = (item.Denominacion || '').toLowerCase();
+                    const codigo = (item.Codigo || '').toLowerCase();
+                    const searchMatch = denominacion.includes(searchTerm) || codigo.includes(searchTerm);
+                    const tipoMatch = (selectedTipo === 'all' || (item.Denominacion || '').startsWith(selectedTipo));
+                    const islaMatch = (selectedIsla === 'all' || item.Isla === selectedIsla);
+                    const municipioMatch = (selectedMunicipio === 'all' || item.Municipio === selectedMunicipio);
+                    const zonaMatch = (selectedZona === 'all' || item.Zona === selectedZona);
+                    return searchMatch && tipoMatch && islaMatch && municipioMatch && zonaMatch;
+                });
+                
+                currentPage = 1;
+                sortData(sortColumn, false); 
+            }
+
+            function sortData(column, isInitialSort = false) {
+                if (!isInitialSort && column) {
+                    if (sortColumn === column) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = column;
+                        sortDirection = 'asc';
+                    }
+                }
+                
+                filteredData.sort((a, b) => {
+                    const valA = a[sortColumn];
+                    const valB = b[sortColumn];
+                    if (valA === null || valA === undefined) return 1;
+                    if (valB === null || valB === undefined) return -1;
+                    if (typeof valA === 'number' && typeof valB === 'number') {
+                        return sortDirection === 'asc' ? valA - valB : valB - valA;
+                    }
+                    const strA = String(valA).toLowerCase();
+                    const strB = String(valB).toLowerCase();
+                    if (strA < strB) return sortDirection === 'asc' ? -1 : 1;
+                    if (strA > strB) return sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                renderTable();
+            }
+
+            function renderTable() {
+                tableBody.innerHTML = '';
+                const start = (currentPage - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+                const paginatedData = filteredData.slice(start, end);
+
+                if (paginatedData.length === 0) {
+                    const row = tableBody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 5;
+                    cell.textContent = 'No se encontraron resultados para los filtros seleccionados.';
+                    cell.className = 'text-center p-8 text-gray-500';
+                } else {
+                    paginatedData.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'bg-white border-b hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="p-4 font-medium text-gray-900">${item.Denominacion || 'N/D'}</td>
+                            <td class="p-4">${item.Municipio || 'N/D'} (${item.Zona || 'N/D'})</td>
+                            <td class="p-4">${item.Isla || 'N/D'}</td>
+                            <td class="p-4 text-center">${item.distancia_aeropuerto_km !== undefined ? item.distancia_aeropuerto_km + ' km' : 'N/A'}</td>
+                            <td class="p-4">
+                                <button class="view-details-btn font-medium text-blue-600 hover:underline" data-id="${item.Codigo}">Ver Detalles</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+                updateResultsCount();
+                renderPagination();
+                updateSortHeaders();
+            }
+            
+            function updateResultsCount() {
+                resultsCount.textContent = `Mostrando ${filteredData.length} de ${schoolData.length} resultados.`;
+            }
+
+            function renderPagination() {
+                paginationControls.innerHTML = '';
+                const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+                if (totalPages <= 1) return;
+                const prevButton = document.createElement('button');
+                prevButton.textContent = 'Anterior';
+                prevButton.disabled = currentPage === 1;
+                prevButton.className = 'px-3 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300';
+                prevButton.addEventListener('click', () => { currentPage--; renderTable(); });
+                paginationControls.appendChild(prevButton);
+                const pageIndicator = document.createElement('span');
+                pageIndicator.textContent = `Página ${currentPage} de ${totalPages}`;
+                pageIndicator.className = 'text-sm text-gray-700';
+                paginationControls.appendChild(pageIndicator);
+                const nextButton = document.createElement('button');
+                nextButton.textContent = 'Siguiente';
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.className = 'px-3 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-gray-200 hover:bg-gray-300';
+                nextButton.addEventListener('click', () => { currentPage++; renderTable(); });
+                paginationControls.appendChild(nextButton);
+            }
+            
+            function updateSortHeaders() {
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.classList.remove('sort-asc', 'sort-desc');
+                    if (header.dataset.column === sortColumn) {
+                        header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+                    }
+                });
+            }
+            
+            function showModal(codigo) {
+                const center = schoolData.find(c => c.Codigo === codigo);
+                if (!center) return;
+                const fullAddress = `${center.Direccion}, ${center.Municipio}, ${center.Isla}, Spain`;
+                const mapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}`;
+                document.getElementById('modal-title').textContent = center.Denominacion || 'Detalles del Centro';
+                document.getElementById('modal-body').innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                        <p><strong>Código:</strong> ${center.Codigo || 'N/D'}</p>
+                        <p><strong>Naturaleza:</strong> ${center.Naturaleza || 'N/D'}</p>
+                        <p><strong>Isla:</strong> ${center.Isla || 'N/D'}</p>
+                        <p><strong>Zona:</strong> ${center.Zona || 'N/D'}</p>
+                        <p class="md:col-span-2"><strong>Municipio:</strong> ${center.Municipio || 'N/D'}</p>
+                        <p class="md:col-span-2"><strong>Dirección:</strong> ${center.Direccion || 'N/D'}</p>
+                        <p><strong>Teléfono:</strong> ${center.Telefono || 'No disponible'}</p>
+                        <p><strong>Email:</strong> ${center.CorreoElectronico || 'No disponible'}</p>
+                        <p class="md:col-span-2"><strong>Aeropuerto cercano:</strong> ${center.aeropuerto || 'N/D'} (~${center.distancia_aeropuerto_km !== undefined ? center.distancia_aeropuerto_km : '?'} km)</p>
+                    </div>
+                    <div class="mt-6 flex flex-wrap gap-2">
+                        <button onclick="copyToClipboard('${center.Telefono}', 'Teléfono')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Copiar Teléfono</button>
+                        <button onclick="copyToClipboard('${center.CorreoElectronico}', 'Email')" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Copiar Email</button>
+                        <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">Ver en Mapa</a>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => {
+                  modalContent.classList.remove('opacity-0', 'scale-95');
+                }, 10);
+            }
+            
+            function hideModal() {
+                modalContent.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 200);
+            }
+
+            function addEventListeners() {
+                searchInput.addEventListener('input', applyAllFilters);
+                filterTipo.addEventListener('change', applyAllFilters);
+                filterIsla.addEventListener('change', () => {
+                    updateDependentFilters();
+                    applyAllFilters();
+                });
+                filterMunicipio.addEventListener('change', applyAllFilters);
+                filterZona.addEventListener('change', applyAllFilters);
+                rowsPerPageSelect.addEventListener('change', (e) => {
+                    rowsPerPage = parseInt(e.target.value, 10);
+                    currentPage = 1;
+                    renderTable();
+                });
+                document.querySelectorAll('.sortable').forEach(header => {
+                    header.addEventListener('click', () => sortData(header.dataset.column));
+                });
+                tableBody.addEventListener('click', (e) => {
+                    const button = e.target.closest('.view-details-btn');
+                    if (button) {
+                        showModal(button.dataset.id);
+                    }
+                });
+                modalCloseBtn.addEventListener('click', hideModal);
+                modalBackdrop.addEventListener('click', hideModal);
+            }
+            
+            initialize();
+        }
+    });
+    
+    function copyToClipboard(text, type = 'Texto') {
+        if (!text || text === 'No disponible') {
+            alert(`No hay ${type} para copiar.`);
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`¡${type} copiado al portapapeles!`);
+            }).catch(err => {
+                console.error('Error al copiar: ', err);
+                alert('No se pudo copiar.');
+            });
+        } else {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            tempInput.style.position = 'absolute';
+            tempInput.style.left = '-9999px';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                alert(`¡${type} copiado al portapapeles!`);
+            } catch (err) {
+                console.error('Error al copiar: ', err);
+                alert('No se pudo copiar.');
+            }
+            document.body.removeChild(tempInput);
+        }
+    }
+</script>
+</body>
+</html>
