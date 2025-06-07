@@ -17,9 +17,9 @@
         .modal-leave-active { opacity: 0; transform: scale(0.95); }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen">
 
-    <div class="container mx-auto p-4 md:p-8">
+    <div class="container mx-auto p-4 md:p-8 flex-grow">
         <header class="bg-white shadow-md rounded-xl p-6 mb-8 text-center">
             <h1 class="text-4xl font-bold text-blue-700">Directorio Avanzado de Centros Educativos</h1>
             <p class="text-gray-500 mt-2">Canarias</p>
@@ -98,6 +98,7 @@
     document.addEventListener('DOMContentLoaded', () => {
 
         // --- INICIO DE LA BASE DE DATOS DE CENTROS ---
+        // PEGA AQUÍ EL JSON COMPLETO
         const schoolData = [
             {"Codigo": "38000135", "Denominacion": "CEIP ALAJERÓ", "Municipio": "ALAJERÓ", "Direccion": "C/ COLUMBA, S/N", "Telefono": "922-592125", "CorreoElectronico": "38000135@gobiernodecanarias.org", "Isla": "LA GOMERA", "Naturaleza": "Público", "Zona": "Sur", "distancia_aeropuerto_km": 3, "aeropuerto": "GMZ"},
             {"Codigo": "38005054", "Denominacion": "CEIP ANSELMO PÉREZ BRITO", "Municipio": "SANTA CRUZ DE LA PALMA", "Direccion": "C/ EL GALEÓN", "Telefono": "922-592281", "CorreoElectronico": "38005054@gobiernodecanarias.org", "Isla": "LA PALMA", "Naturaleza": "Público", "Zona": "Este", "distancia_aeropuerto_km": 7, "aeropuerto": "SPC"},
@@ -135,7 +136,7 @@
         function initialize() {
             populateFilters();
             addEventListeners();
-            sortData(sortColumn, true); // Sort inicial
+            sortData(sortColumn, true); 
         }
 
         function populateFilters() {
@@ -146,7 +147,6 @@
         function updateDependentFilters() {
             const selectedIsla = filterIsla.value;
             
-            // Reset y poblar municipios
             filterMunicipio.innerHTML = '<option value="all">Todos los Municipios</option>';
             if (selectedIsla !== 'all') {
                 filterMunicipio.disabled = false;
@@ -156,7 +156,6 @@
                 filterMunicipio.disabled = true;
             }
 
-            // Reset y poblar zonas
             filterZona.innerHTML = '<option value="all">Todas las Zonas</option>';
             if (selectedIsla !== 'all') {
                  filterZona.disabled = false;
@@ -182,7 +181,7 @@
             });
             
             currentPage = 1;
-            sortData(sortColumn, false); // Re-sort but don't toggle direction
+            sortData(sortColumn, false); 
         }
 
         function sortData(column, isInitialSort = false) {
@@ -365,3 +364,4 @@
     </script>
 </body>
 </html>
+
